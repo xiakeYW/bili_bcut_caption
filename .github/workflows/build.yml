@@ -45,12 +45,12 @@ jobs:
           enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync --dev
+        run: uv sync --group build
 
       - name: Build with PyInstaller
         shell: bash
         run: |
-          uv run pyinstaller --onefile --clean --name bili_bcut_caption main.py
+          uv run --group build pyinstaller --onefile --clean --name bili_bcut_caption main.py
 
       - name: Prepare upload
         shell: bash
