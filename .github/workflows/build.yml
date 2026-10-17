@@ -50,7 +50,7 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
-          uv run pyinstaller --onefile --clean --name bili_bcut_caption src/bili_bcut_caption/__init__.py
+          uv run pyinstaller --onefile --clean --name bili_bcut_caption main.py
 
       - name: Prepare upload
         shell: bash
