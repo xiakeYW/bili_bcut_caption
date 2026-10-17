@@ -4,7 +4,7 @@
 
 ## 截图
 <p align="center">
-  <image src="./image/Screenshot.png"/>
+  <image src="./images/Screenshot.png"/>
 </p>
 
 
