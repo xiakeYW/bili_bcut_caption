@@ -1,0 +1,23 @@
+[project]
+name = "bili-bcut-caption"
+version = "0.1.0"
+description = "把 SRT/LRC 字幕按样式模板批量写入必剪(Bcut)工程的工具"
+readme = "README.md"
+authors = [
+    { name = "xiakeEYW", email = "1208528385@qq.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "pylrc>=0.1.2",
+    "pysrt>=1.1.2",
+]
+
+[project.scripts]
+bili-bcut-caption = "bili_bcut_caption:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = []
