@@ -1,0 +1,91 @@
+name: Build Multi-Arch Executables
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.display-name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            display-name: linux-x86_64
+            artifact-name: bili_bcut_caption-linux-x86_64
+            ext: ""
+          - os: ubuntu-24.04-arm
+            display-name: linux-arm64
+            artifact-name: bili_bcut_caption-linux-arm64
+            ext: ""
+          - os: windows-latest
+            display-name: windows-x86_64
+            artifact-name: bili_bcut_caption-windows-x86_64
+            ext: ".exe"
+          - os: windows-11-arm
+            display-name: windows-arm64
+            artifact-name: bili_bcut_caption-windows-arm64
+            ext: ".exe"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --dev
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          uv run pyinstaller --onefile --clean --name bili_bcut_caption src/bili_bcut_caption/__init__.py
+
+      - name: Prepare upload
+        shell: bash
+        run: |
+          mkdir -p upload
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp "dist/bili_bcut_caption.exe" "upload/${{ matrix.artifact-name }}.exe"
+          else
+            cp "dist/bili_bcut_caption" "upload/${{ matrix.artifact-name }}"
+            chmod +x "upload/${{ matrix.artifact-name }}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: upload/*
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
