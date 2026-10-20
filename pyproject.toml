@@ -10,6 +10,7 @@ requires-python = ">=3.14"
 dependencies = [
     "pylrc>=0.1.2",
     "pysrt>=1.1.2",
+    "pysubs2>=1.9.0",
 ]
 
 [project.scripts]

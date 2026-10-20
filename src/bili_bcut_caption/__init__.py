@@ -104,7 +104,7 @@ class BcutApp:
         """选择文件并填入 entry，触发 FILE_SELECTED"""
         filepath = filedialog.askopenfilename(
             title="选择字幕文件",
-            filetypes=[("字幕文件", "*.srt *.lrc")]
+            filetypes=[("字幕文件", "*.srt *.lrc *.ass *.ssa")]
         )
         if filepath:
             self.select_subtitle_file(filepath)

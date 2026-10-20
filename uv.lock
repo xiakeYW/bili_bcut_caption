@@ -18,6 +18,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pylrc" },
     { name = "pysrt" },
+    { name = "pysubs2" },
 ]
 
 [package.dev-dependencies]
@@ -29,6 +30,7 @@ build = [
 requires-dist = [
     { name = "pylrc", specifier = ">=0.1.2" },
     { name = "pysrt", specifier = ">=1.1.2" },
+    { name = "pysubs2", specifier = ">=1.9.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -148,6 +150,15 @@ dependencies = [
     { name = "chardet" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/31/1a/0d858da1c6622dcf16011235a2639b0a01a49cecf812f8ab03308ab4de37/pysrt-1.1.2.tar.gz", hash = "sha256:b4f844ba33e4e7743e9db746492f3a193dc0bc112b153914698e7c1cdeb9b0b9", size = 104371, upload-time = "2020-01-20T15:22:28.291Z" }
+
+[[package]]
+name = "pysubs2"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/20/9071b8b0012d9102e90292c71fe3f1181c33e772e28cbabb4779c0087603/pysubs2-1.9.0.tar.gz", hash = "sha256:4592405e5d961e23cd39c81e2875fb85c30346ae37d100f144cd7fd8ec560e42", size = 1147418, upload-time = "2026-08-16T19:54:51.267Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/43/6b89c84f5a6753b1dbc43b8d010443b8f2314a2b94f34e448975d115c962/pysubs2-1.9.0-py3-none-any.whl", hash = "sha256:83f1979cb7e064294f0c8473ef672ca2e5c0a7172bbf8ae9b4337899d5cdf01f", size = 48175, upload-time = "2026-08-16T19:54:49.927Z" },
+]
 
 [[package]]
 name = "pywin32-ctypes"

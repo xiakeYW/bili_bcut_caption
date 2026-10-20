@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pylrc as lrc
 import pysrt as srt
+import pysubs2
 
 # 字幕数据位置
 # .bjson
@@ -60,7 +61,11 @@ def parse_subtitles(file: str) -> list[Caption]:
         return _parse_lrc(file)
     if ext == ".srt":
         return _parse_srt(file)
-    raise ValueError(f"不支持的字幕格式: {ext} (仅支持 .srt / .lrc)")
+    if ext == ".ass": 
+        return _parse_srt(srt_str=_load_ass_ssa(file))
+    if ext == ".ssa": 
+        return _parse_srt(srt_str=_load_ass_ssa(file))
+    raise ValueError(f"不支持的字幕格式: {ext} (仅支持 .srt / .lrc / .ass / .ssa)")
 
 
 def _parse_lrc(file: str) -> list[Caption]:
@@ -80,9 +85,13 @@ def _parse_lrc(file: str) -> list[Caption]:
     return captions
 
 
-def _parse_srt(file: str) -> list[Caption]:
+def _parse_srt(file="", srt_str="") -> list[Caption]:
     captions = []
-    for item in srt.open(file, encoding="utf-8"):
+    items = []
+    if srt_str : items = srt.from_string(srt_str); 
+    if file : items = srt.open(file, encoding="utf-8"); 
+
+    for item in items:
         text = item.text.strip()
         if not text:
             continue
@@ -91,6 +100,9 @@ def _parse_srt(file: str) -> list[Caption]:
         captions.append(Caption(start, end, text))
     return captions
 
+def _load_ass_ssa(file: str) -> str :
+    subs = pysubs2.load(file, encoding="utf-8"); 
+    return subs.to_string(format_="srt"); 
 
 def get_caption_tracks(data: dict) -> list[dict]:
     return data.get("timelineWidget", {}).get("timeline", {}).get("captionTracks", [])
