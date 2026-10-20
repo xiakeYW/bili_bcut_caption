@@ -200,6 +200,80 @@ def backup_project(path: str) -> str | None:
     return str(dest)
 
 
+def get_track_captions(data: dict, track_index: int) -> list[Caption]:
+    tracks = get_caption_tracks(data)
+    if track_index < 0 or track_index >= len(tracks):
+        return []
+    captions = []
+    for cap in tracks[track_index].get("captions", []):
+        text = (cap.get("captionText") or "").strip()
+        if not text:
+            continue
+        start = cap.get("inPoint", 0)
+        end = max(cap.get("outPoint", start + MIN_CAPTION_MS), start + MIN_CAPTION_MS)
+        captions.append(Caption(start, end, text))
+    return captions
+
+
+def find_track_by_template(data: dict, template_text: str) -> int | None:
+    template_text = template_text.strip()
+    if not template_text:
+        return None
+    for index, track in enumerate(get_caption_tracks(data)):
+        for cap in track.get("captions", []):
+            if (cap.get("captionText") or "").strip() == template_text:
+                return index
+    return None
+
+
+def export_captions(captions: list[Caption], path: str, fmt: str) -> None:
+    fmt = fmt.lower().lstrip(".")
+    if fmt == "srt":
+        _export_srt(captions, path)
+    elif fmt == "lrc":
+        _export_lrc(captions, path)
+    elif fmt in ("ass", "ssa"):
+        _export_ass(captions, path, fmt)
+    else:
+        raise ValueError(f"不支持的导出格式: {fmt}")
+
+
+def _export_srt(captions: list[Caption], path: str) -> None:
+    lines = []
+    for i, cap in enumerate(captions, 1):
+        lines.append(str(i))
+        lines.append(f"{_fmt_srt_time(cap.start_ms)} --> {_fmt_srt_time(cap.end_ms)}")
+        lines.append(cap.text)
+        lines.append("")
+    Path(path).write_text("\n".join(lines), encoding="utf-8")
+
+
+def _fmt_srt_time(ms: int) -> str:
+    h = ms // 3600000
+    m = ms % 3600000 // 60000
+    s = ms % 60000 // 1000
+    ms_part = ms % 1000
+    return f"{h:02d}:{m:02d}:{s:02d},{ms_part:03d}"
+
+
+def _export_lrc(captions: list[Caption], path: str) -> None:
+    lines = []
+    for cap in captions:
+        m = cap.start_ms // 60000
+        s = cap.start_ms % 60000 // 1000
+        cs = cap.start_ms % 1000 // 10
+        lines.append(f"[{m:02d}:{s:02d}.{cs:02d}]{cap.text}")
+    Path(path).write_text("\n".join(lines), encoding="utf-8")
+
+
+def _export_ass(captions: list[Caption], path: str, fmt: str) -> None:
+    subs = pysubs2.SSAFile()
+    for cap in captions:
+        event = pysubs2.SSAEvent(start=cap.start_ms, end=cap.end_ms, text=cap.text)
+        subs.events.append(event)
+    subs.save(path, format_="ass" if fmt == "ass" else "ssa", encoding="utf-8")
+
+
 def load_captions(
     bjson_path: str,
     subtitle_path: str,

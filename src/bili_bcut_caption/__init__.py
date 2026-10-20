@@ -9,10 +9,13 @@ from .find import find_bcut_drafts
 from .core import (
     backup_project,
     build_caption,
+    export_captions,
     extract_template,
     find_latest_bjson,
+    find_track_by_template,
     fmt_ms,
     get_caption_tracks,
+    get_track_captions,
     inject_captions,
     list_template_texts,
     load_json,
@@ -219,11 +222,12 @@ class BcutApp:
         self.log_text.config(yscrollcommand=log_scrollbar.set)
         row += 1
 
-        # [备份按钮] [加载按钮]
+        # [备份按钮] [导出按钮] [加载按钮]
         content.grid_rowconfigure(row, weight=0)
         btn_frame = tk.Frame(content)
         btn_frame.grid(row=row, column=0, columnspan=3, sticky="ew", pady=(10, 0))
         tk.Button(btn_frame, text="备份", width=12, command=self.on_backup).pack(side=tk.LEFT)
+        tk.Button(btn_frame, text="导出", width=12, command=self.on_export).pack(side=tk.LEFT, expand=True)
         tk.Button(btn_frame, text="加载", width=12, command=self.on_load).pack(side=tk.RIGHT)
 
     # ---------- 输入接口 ----------
@@ -447,6 +451,148 @@ class BcutApp:
             return
         self.append_log(f"[备份] {project_dir}")
         self.append_log(f"[备份] 已保存到 {dest}")
+
+    def on_export(self) -> None:
+        """校验项目后弹出导出对话框"""
+        data = self.get_data()
+        project_dir = data.project_dir or self._project_path_by_name(data.project_name)
+        if not project_dir or not os.path.isdir(project_dir):
+            self.append_log("[导出失败] 项目文件夹不存在，请先选择必剪数据目录并选定项目")
+            return
+        bjson_path = find_latest_bjson(project_dir)
+        if not bjson_path:
+            self.append_log(f"[导出失败] 项目文件夹中没有 bjson 文件: {project_dir}")
+            return
+        try:
+            bjson_data = load_json(bjson_path)
+        except Exception as e:
+            self.append_log(f"[导出失败] bjson 读取失败: {e}")
+            return
+        tracks = get_caption_tracks(bjson_data)
+        if not tracks:
+            self.append_log("[导出失败] 项目中没有字幕轨")
+            return
+        self._show_export_dialog(bjson_data, tracks, bjson_path)
+
+    def _show_export_dialog(self, bjson_data: dict, tracks: list[dict], bjson_path: str) -> None:
+        """弹出导出设置对话框"""
+        dlg = tk.Toplevel(self.root)
+        dlg.title("导出字幕")
+        dlg.resizable(False, False)
+        dlg.transient(self.root)
+        dlg.grab_set()
+
+        frame = tk.Frame(dlg, padx=16, pady=16)
+        frame.pack(fill="both", expand=True)
+
+        # 导出方式
+        mode_frame = tk.LabelFrame(frame, text="导出方式", padx=8, pady=6)
+        mode_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        mode_var = tk.StringVar(value="track")
+        tk.Radiobutton(mode_frame, text="按轨道导出", variable=mode_var, value="track").pack(anchor="w")
+        tk.Radiobutton(mode_frame, text="按模板文本导出", variable=mode_var, value="template").pack(anchor="w")
+
+        # 轨道选择
+        tk.Label(frame, text="轨道:").grid(row=1, column=0, sticky="w", pady=4)
+        track_combo = ttk.Combobox(frame, state="readonly", width=30)
+        track_combo.grid(row=1, column=1, sticky="ew", pady=4, padx=(8, 0))
+        track_labels = []
+        for i, track in enumerate(tracks):
+            captions = track.get("captions", [])
+            first = (captions[0].get("captionText", "") if captions else "").strip()
+            track_labels.append(f"{i + 1}. {first[:10] or '空轨道'} ({len(captions)}条)")
+        track_combo["values"] = track_labels
+        if track_labels:
+            track_combo.current(0)
+
+        # 模板文本
+        tk.Label(frame, text="模板文本:").grid(row=2, column=0, sticky="w", pady=4)
+        template_combo = ttk.Combobox(frame, width=30)
+        template_combo.grid(row=2, column=1, sticky="ew", pady=4, padx=(8, 0))
+        template_texts = list_template_texts(bjson_data)
+        template_combo["values"] = template_texts
+        if template_texts:
+            template_combo.set(template_texts[0])
+
+        def on_mode_change():
+            mode = mode_var.get()
+            track_combo.config(state="readonly" if mode == "track" else "disabled")
+            template_combo.config(state="normal" if mode == "template" else "disabled")
+
+        for rb in mode_frame.winfo_children():
+            rb.config(command=on_mode_change)
+        on_mode_change()
+
+        # 导出格式
+        fmt_frame = tk.LabelFrame(frame, text="导出格式", padx=8, pady=6)
+        fmt_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+        fmt_var = tk.StringVar(value="srt")
+        fmts = [("SRT", "srt"), ("LRC", "lrc"), ("ASS", "ass"), ("SSA", "ssa")]
+        for i, (label, value) in enumerate(fmts):
+            tk.Radiobutton(fmt_frame, text=label, variable=fmt_var, value=value).grid(row=0, column=i, padx=4)
+
+        def on_confirm():
+            mode = mode_var.get()
+            fmt = fmt_var.get()
+            if mode == "track":
+                idx = track_combo.current()
+                if idx < 0:
+                    self.append_log("[导出失败] 未选择轨道")
+                    dlg.destroy()
+                    return
+                captions = get_track_captions(bjson_data, idx)
+                desc = f"第 {idx + 1} 轨"
+            else:
+                template_text = template_combo.get().strip()
+                if not template_text:
+                    self.append_log("[导出失败] 未输入模板文本")
+                    dlg.destroy()
+                    return
+                idx = find_track_by_template(bjson_data, template_text)
+                if idx is None:
+                    self.append_log(f"[导出失败] 未找到模板「{template_text}」所在的轨道")
+                    dlg.destroy()
+                    return
+                captions = get_track_captions(bjson_data, idx)
+                desc = f"模板「{template_text}」所在第 {idx + 1} 轨"
+
+            if not captions:
+                self.append_log(f"[导出失败] {desc} 没有可导出的字幕")
+                dlg.destroy()
+                return
+
+            default_ext = {"srt": ".srt", "lrc": ".lrc", "ass": ".ass", "ssa": ".ssa"}[fmt]
+            save_path = filedialog.asksaveasfilename(
+                title="保存字幕文件",
+                defaultextension=default_ext,
+                filetypes=[
+                    ("SRT 字幕", "*.srt"),
+                    ("LRC 歌词", "*.lrc"),
+                    ("ASS 字幕", "*.ass"),
+                    ("SSA 字幕", "*.ssa"),
+                    ("所有文件", "*.*"),
+                ],
+            )
+            if not save_path:
+                dlg.destroy()
+                return
+
+            try:
+                export_captions(captions, save_path, fmt)
+            except Exception as e:
+                self.append_log(f"[导出失败] 写入失败: {e}")
+                dlg.destroy()
+                return
+
+            self.append_log(f"[导出] {desc}，共 {len(captions)} 条 -> {save_path}")
+            dlg.destroy()
+
+        btn_frame = tk.Frame(frame)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=(12, 0))
+        tk.Button(btn_frame, text="导出", width=10, command=on_confirm).pack(side=tk.LEFT, padx=(0, 8))
+        tk.Button(btn_frame, text="取消", width=10, command=dlg.destroy).pack(side=tk.LEFT)
+
+        dlg.wait_window()
 
     def on_load(self) -> None:
         """校验全部输入后，把字幕写入项目 bjson"""
