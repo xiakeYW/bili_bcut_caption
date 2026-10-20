@@ -1,6 +1,6 @@
 [project]
 name = "bili-bcut-caption"
-version = "0.1.0"
+version = "0.2.0"
 description = "把 SRT/LRC 字幕按样式模板批量写入必剪(Bcut)工程的工具"
 readme = "README.md"
 authors = [

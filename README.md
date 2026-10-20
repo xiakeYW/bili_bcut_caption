@@ -1,6 +1,6 @@
 # bili-bcut-caption
 
-把 SRT / LRC 字幕批量写入必剪（Bcut）工程的桌面小工具。
+把 SRT / LRC 字幕批量 写入/导出 必剪（Bcut）工程的桌面小工具。
 
 ## 截图
 <p align="center">
